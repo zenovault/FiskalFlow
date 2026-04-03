@@ -65,15 +65,15 @@ def extract_text(filepath: str) -> dict:
             lang_used = FALLBACK_LANGS
 
         confidences = [int(c) for c in data["conf"] if int(c) > 0]
-        avg_confidence = (
-            (sum(confidences) / len(confidences) / 100.0) if confidences else 0.0
-        )
+        avg_raw = (sum(confidences) / len(confidences)) if confidences else 0.0
+        avg_confidence = avg_raw / 100.0
 
         raw_text = " ".join([word for word in data["text"] if word.strip()])
 
         return {
             "raw_text": raw_text,
-            "confidence": round(avg_confidence, 3),
+            "confidence": round(avg_confidence, 3),       # 0.0-1.0 — backward compat
+            "confidence_score": round(avg_raw, 1),        # 0-100 — stored in DB
             "language": lang_used,
         }
 

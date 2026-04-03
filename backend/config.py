@@ -2,7 +2,7 @@
 
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
-from typing import List
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
@@ -22,6 +22,10 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: str = "http://localhost:5173"
     ENVIRONMENT: str = "development"
+
+    POLYGON_RPC_URL: Optional[str] = None
+    POLYGON_PRIVATE_KEY: Optional[str] = None
+    CONTRACT_ADDRESS: Optional[str] = None
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

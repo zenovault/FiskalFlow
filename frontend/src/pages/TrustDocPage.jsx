@@ -1,5 +1,5 @@
 /**
- * TrustDoc — blockchain certificate verification module.
+ * ValidDoc — blockchain certificate verification module.
  * Three tabs: Izdaj dokument | Moji dokumenti | Proveri QR
  */
 
@@ -152,7 +152,7 @@ function IssueTab() {
         nivo_obrazovanja: form.nivo_obrazovanja || null,
         napomena: form.napomena || null,
       }
-      const res = await client.post('/api/trustdoc/mint', payload)
+      const res = await client.post('/api/validoc/mint', payload)
       setResult(res.data)
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Greška pri izdavanju')
@@ -162,19 +162,43 @@ function IssueTab() {
   }
 
   if (result) {
+    const isPending = result.chain_status === 'pending_chain'
+    const qrUrl = result.qr_data || result.verification_url
+    const txShort = result.tx_hash && result.tx_hash.length > 14
+      ? result.tx_hash.slice(0, 10) + '…' + result.tx_hash.slice(-6)
+      : result.tx_hash
     return (
       <div className="max-w-md mx-auto">
         <div className="text-center p-6 border border-green-200 dark:border-green-800 rounded-xl bg-green-50 dark:bg-green-900/20">
           <CheckCircle size={48} className="text-green-500 mx-auto mb-3" />
-          <h3 className="font-semibold text-lg text-green-800 dark:text-green-300 mb-1">Dokument je verifikovan na blockchain-u</h3>
-          <p className="text-sm text-green-600 dark:text-green-400 mb-4">{result.naziv_institucije} — {result.naziv_diplome}</p>
+          <h3 className="font-semibold text-lg text-green-800 dark:text-green-300 mb-1">Dokument je registrovan</h3>
+          <p className="text-sm text-green-600 dark:text-green-400 mb-1">{result.naziv_institucije} — {result.naziv_diplome}</p>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{result.ime_studenta} {result.prezime_studenta}</p>
-          <div className="flex justify-center mb-4 bg-white p-3 rounded-lg inline-block">
-            <QRCodeSVG value={result.verification_url} size={180} />
+
+          {isPending ? (
+            <div className="mb-4 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-700 dark:text-amber-400">
+              Dokument sačuvan lokalno. Blockchain upis će biti pokušan ponovo.
+            </div>
+          ) : (
+            result.polygonscan_url && (
+              <a
+                href={result.polygonscan_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 mb-4 text-xs text-blue-600 hover:underline font-mono"
+              >
+                <ExternalLink size={11} />
+                {txShort}
+              </a>
+            )
+          )}
+
+          <div className="flex justify-center mb-4 bg-white p-3 rounded-lg">
+            <QRCodeSVG value={qrUrl} size={180} />
           </div>
           <p className="text-xs text-gray-400 font-mono mb-4">{result.hash.slice(0, 24)}...</p>
           <button
-            onClick={() => { navigator.clipboard.writeText(result.verification_url); toast.success('Link kopiran') }}
+            onClick={() => { navigator.clipboard.writeText(qrUrl); toast.success('Link kopiran') }}
             className="flex items-center gap-2 mx-auto text-sm border border-green-300 dark:border-green-700 rounded-lg px-4 py-2 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30"
           >
             <Copy size={14} />
@@ -443,7 +467,7 @@ function IssueTab() {
           disabled={loading}
           className="w-full py-3 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
-          {loading ? 'Registruje se...' : 'Registruj dokument na blockchain-u'}
+          {loading ? 'Upisivanje na Polygon mrežu... (~10 sek)' : 'Registruj dokument na blockchain-u'}
         </button>
       </div>
     </div>
@@ -456,9 +480,11 @@ function MyCertsTab({ onQr }) {
   const [certs, setCerts] = useState(null)
   const [revoking, setRevoking] = useState(null)
   const [confirmRevoke, setConfirmRevoke] = useState(null)
+  const [verifying, setVerifying] = useState(null)   // cert id being verified
+  const [verifyResults, setVerifyResults] = useState({}) // id -> result
 
   const load = async () => {
-    const res = await client.get('/api/trustdoc/list')
+    const res = await client.get('/api/validoc/list')
     setCerts(res.data)
   }
 
@@ -470,7 +496,7 @@ function MyCertsTab({ onQr }) {
   const handleRevoke = async (hash) => {
     setRevoking(hash)
     try {
-      await client.post(`/api/trustdoc/revoke/${hash}`)
+      await client.post(`/api/validoc/revoke/${hash}`)
       toast.success('Sertifikat poništen')
       setCerts(null)
     } catch {
@@ -485,6 +511,18 @@ function MyCertsTab({ onQr }) {
     const url = `${window.location.origin}/verify/${hash}`
     await navigator.clipboard.writeText(url)
     toast.success('Link kopiran u clipboard!')
+  }
+
+  const handleVerifyChain = async (cert) => {
+    setVerifying(cert.id)
+    try {
+      const res = await client.get(`/api/validoc/verify-chain/${cert.id}`)
+      setVerifyResults(prev => ({ ...prev, [cert.id]: res.data }))
+    } catch {
+      setVerifyResults(prev => ({ ...prev, [cert.id]: { verified: null, error: 'Greška' } }))
+    } finally {
+      setVerifying(null)
+    }
   }
 
   if (certs.length === 0) {
@@ -524,7 +562,7 @@ function MyCertsTab({ onQr }) {
                 }
               </td>
               <td className="px-4 py-3">
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1">
                   <button onClick={() => copyLink(c.hash)} title="Kopiraj link"
                     className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-400 hover:text-blue-600 transition-colors">
                     <Copy size={14} />
@@ -537,6 +575,28 @@ function MyCertsTab({ onQr }) {
                     className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-400 hover:text-green-600 transition-colors">
                     <ExternalLink size={14} />
                   </button>
+                  {c.polygonscan_url && (
+                    <a href={c.polygonscan_url} target="_blank" rel="noopener noreferrer"
+                      title="Otvori PolygonScan"
+                      className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-400 hover:text-purple-600 transition-colors">
+                      <ExternalLink size={14} />
+                    </a>
+                  )}
+                  <button
+                    onClick={() => handleVerifyChain(c)}
+                    disabled={verifying === c.id}
+                    title="Verifikuj na blockchain-u"
+                    className="text-xs px-2 py-1 rounded border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-40 transition-colors"
+                  >
+                    {verifying === c.id ? '...' : 'Verifikuj'}
+                  </button>
+                  {verifyResults[c.id] && (
+                    verifyResults[c.id].verified === true
+                      ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800">Na lancu</span>
+                      : verifyResults[c.id].verified === false
+                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">Nije na lancu</span>
+                        : <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">Nedostupan</span>
+                  )}
                   {c.je_validan && (
                     confirmRevoke === c.hash ? (
                       <div className="flex items-center gap-2 ml-1">
@@ -586,7 +646,7 @@ function VerifyTab() {
     setResult(null)
     setNotFound(false)
     try {
-      const res = await client.get(`/api/trustdoc/verify/${hash.trim()}`)
+      const res = await client.get(`/api/validoc/verify/${hash.trim()}`)
       setResult(res.data)
     } catch {
       setNotFound(true)
@@ -658,14 +718,14 @@ export default function TrustDocPage() {
     const url = canvas.toDataURL('image/png')
     const a = document.createElement('a')
     a.href = url
-    a.download = `trustdoc-qr-${qrDoc.hash.slice(0,8)}.png`
+    a.download = `validoc-qr-${qrDoc.hash.slice(0,8)}.png`
     a.click()
     toast.success('QR kod preuzet')
   }
 
   return (
     <div>
-      <TopBar title="TrustDoc — Verifikacija dokumenata" />
+      <TopBar title="ValidDoc — Verifikacija dokumenata" />
       <div className="p-6">
         <div className="flex items-center gap-2 mb-6">
           <ShieldCheck size={20} className="text-blue-600" />

@@ -17,7 +17,7 @@ const navItems = [
 ]
 
 const trustDocItems = [
-  { to: '/trustdoc', icon: ShieldCheck, label: 'TrustDoc — Diplome' },
+  { to: '/validoc', icon: ShieldCheck, label: 'ValidDoc — Baza' },
 ]
 
 export default function Sidebar() {
@@ -34,7 +34,7 @@ export default function Sidebar() {
   const NavContent = () => (
     <>
       <div className="px-6 py-5 border-b border-slate-700">
-        <h1 className="text-white font-bold text-lg leading-tight">Birokrat-Slayer</h1>
+        <h1 className="text-white font-bold text-lg leading-tight">FiskalFlow</h1>
         <p className="text-slate-400 text-xs mt-0.5">Računovodska automatizacija</p>
       </div>
 

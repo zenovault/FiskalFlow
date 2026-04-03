@@ -1,7 +1,7 @@
 """
-Test data seeder for Birokrat-Slayer.
+Test data seeder for FiskalFlow.
 Run once: python seed_test_data.py
-Creates 1 test user + 5 invoices + 3 TrustDoc certificates.
+Creates 1 test user + 5 invoices + 3 ValidDoc certificates.
 """
 import sys, os, json, hashlib
 from datetime import datetime

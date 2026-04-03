@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Upl
 from fastapi.responses import FileResponse, Response
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from config import settings
@@ -105,6 +106,7 @@ async def upload_invoice(
     request: Request,
     file: UploadFile = File(...),
     scan_profile: str = Form("potpuno"),
+    force: bool = Query(False, description="Skip duplicate check and save anyway"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -144,6 +146,36 @@ async def upload_invoice(
         invoice.processing_status = "completed"
         invoice.updated_at = datetime.utcnow()
         _map_parsed_to_invoice(invoice, parsed, ocr_confidence)
+        invoice.confidence_score = ocr_result.get("confidence_score")
+
+        # Duplicate detection — skip if force=True or data incomplete
+        if not force and invoice.issuer_name and invoice.total_amount and invoice.issue_date:
+            dup = (
+                db.query(Invoice)
+                .filter(
+                    Invoice.user_id == current_user.id,
+                    Invoice.id != invoice.id,
+                    func.lower(Invoice.issuer_name) == func.lower(invoice.issuer_name),
+                    func.abs(Invoice.total_amount - invoice.total_amount) < 0.01,
+                    Invoice.issue_date == invoice.issue_date,
+                )
+                .first()
+            )
+            if dup:
+                db.delete(invoice)
+                db.commit()
+                try:
+                    file_path.unlink()
+                except OSError:
+                    pass
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "duplicate",
+                        "existing_id": dup.id,
+                        "message": f"Moguć duplikat — račun već postoji (ID #{dup.id})",
+                    },
+                )
 
         db.commit()
         db.refresh(invoice)
@@ -371,6 +403,20 @@ async def get_invoice_report(
             "ukupan_iznos": _sum(invoices, "total_amount"),
             "ukupan_pdv": _sum(invoices, "vat_amount"),
         },
+        "invoices": [
+            {
+                "id": i.id,
+                "issue_date": i.issue_date,
+                "issuer_name": i.issuer_name,
+                "invoice_number": i.invoice_number,
+                "total_amount": i.total_amount,
+                "vat_amount": i.vat_amount,
+                "invoice_type": i.tip_fakture or "ulazna",
+                "status": i.processing_status,
+                "confidence_score": getattr(i, "confidence_score", None),
+            }
+            for i in invoices
+        ],
     }
 
 

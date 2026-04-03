@@ -17,7 +17,7 @@ export default function VerifyPage() {
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
-    client.get(`/api/trustdoc/verify/${hash}`)
+    client.get(`/api/validoc/verify/${hash}`)
       .then(res => setCert(res.data))
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
@@ -30,7 +30,7 @@ export default function VerifyPage() {
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-2 mb-2">
             <ShieldCheck size={28} className="text-blue-600" />
-            <h1 className="text-xl font-bold text-gray-900">TrustDoc</h1>
+            <h1 className="text-xl font-bold text-gray-900">ValidDoc</h1>
           </div>
           <p className="text-sm text-gray-500">Verifikacija diplome</p>
         </div>
@@ -92,7 +92,7 @@ export default function VerifyPage() {
             </div>
 
             <p className="text-center text-xs text-gray-400 mt-6">
-              Verifikovano putem TrustDoc blockchain registra
+              Verifikovano putem ValidDoc blockchain registra
             </p>
           </div>
         )}

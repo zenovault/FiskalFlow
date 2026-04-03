@@ -56,6 +56,9 @@ class Invoice(Base):
     # Item count
     broj_artikala = Column(Integer, nullable=True)
 
+    # --- Confidence score (Patch 4 — raw 0-100 pytesseract score) ---
+    confidence_score = Column(Float, nullable=True)
+
     # --- Accounting fields (Patch 3) ---
     interni_broj = Column(Text, nullable=True)               # Internal reference / work order number
     tip_fakture = Column(Text, nullable=True, default="ulazna")  # "ulazna" | "izlazna"

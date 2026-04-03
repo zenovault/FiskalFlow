@@ -52,6 +52,8 @@ _NEW_COLUMNS = [
     ("broj_artikala", "INTEGER"),
     # Patch 3 — accounting fields
     ("interni_broj", "TEXT"),
+    # Patch 4 — pytesseract confidence score (0-100)
+    ("confidence_score", "REAL"),
     ("tip_fakture", 'TEXT DEFAULT "ulazna"'),
     ("avans_primljen", "REAL"),
     ("avans_opravdan", "REAL"),
@@ -60,17 +62,28 @@ _NEW_COLUMNS = [
 ]
 
 
+_CERT_NEW_COLUMNS = [
+    # Patch 5 — ValidDoc real blockchain columns
+    ("tx_hash", "VARCHAR"),
+    ("polygonscan_url", "VARCHAR"),
+    ("doc_hash", "VARCHAR"),
+    ("chain_timestamp", "INTEGER"),
+]
+
+
 def run_migrations():
     """Apply additive schema migrations for existing databases."""
+    import sqlalchemy as _sa
     with engine.connect() as conn:
         for col_name, col_type in _NEW_COLUMNS:
             try:
-                conn.execute(
-                    __import__("sqlalchemy").text(
-                        f"ALTER TABLE invoices ADD COLUMN {col_name} {col_type}"
-                    )
-                )
+                conn.execute(_sa.text(f"ALTER TABLE invoices ADD COLUMN {col_name} {col_type}"))
                 conn.commit()
             except Exception:
-                # Column already exists — safe to ignore
+                conn.rollback()
+        for col_name, col_type in _CERT_NEW_COLUMNS:
+            try:
+                conn.execute(_sa.text(f"ALTER TABLE certificates ADD COLUMN {col_name} {col_type}"))
+                conn.commit()
+            except Exception:
                 conn.rollback()

@@ -2,12 +2,13 @@
  * Invoices list page with search, filters, pagination, and bulk CSV export.
  */
 
-import { useEffect, useState, useCallback } from 'react'
-import { Search, Download } from 'lucide-react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { Search, Download, FileSpreadsheet } from 'lucide-react'
 import client from '../api/client'
 import InvoiceTable from '../components/InvoiceTable'
 import TopBar from '../components/Layout/TopBar'
 import toast from 'react-hot-toast'
+import { utils, writeFile } from 'xlsx'
 
 const DOC_TYPES = ['', 'faktura', 'gotovinski_racun', 'putni_nalog', 'ostalo']
 const STATUSES = ['', 'pending', 'processing', 'completed', 'failed']
@@ -18,6 +19,8 @@ export default function InvoicesPage() {
   const [pages, setPages] = useState(1)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+
+  const processedRef = useRef([])
 
   const [search, setSearch] = useState('')
   const [docType, setDocType] = useState('')
@@ -52,6 +55,24 @@ export default function InvoicesPage() {
 
   // Reset to page 1 when filters change
   useEffect(() => { setPage(1) }, [search, docType, status])
+
+  const handleExportXlsx = () => {
+    const data = processedRef.current
+    if (!data.length) { toast.error('Nema podataka za izvoz'); return }
+    const today = new Date().toISOString().split('T')[0]
+    const ws = utils.json_to_sheet(data.map(inv => ({
+      'Datum': inv.issue_date || '',
+      'Izdavalac': inv.issuer_name || '',
+      'Broj dokumenta': inv.invoice_number || '',
+      'Ukupno': inv.total_amount ?? 0,
+      'PDV': inv.vat_amount ?? 0,
+      'Tip': inv.tip_fakture || '',
+      'Status': inv.processing_status || '',
+    })))
+    const wb = utils.book_new()
+    utils.book_append_sheet(wb, ws, 'Fakture')
+    writeFile(wb, `izvestaj_${today}.xlsx`)
+  }
 
   const handleExport = async () => {
     try {
@@ -108,6 +129,13 @@ export default function InvoicesPage() {
             <Download size={16} />
             Izvezi CSV
           </button>
+          <button
+            onClick={handleExportXlsx}
+            className="flex items-center gap-2 px-4 py-2 border border-green-200 text-green-700 rounded-lg text-sm font-medium hover:bg-green-50 transition-colors"
+          >
+            <FileSpreadsheet size={16} />
+            Izvezi XLSX
+          </button>
         </div>
 
         {/* Table */}
@@ -115,7 +143,7 @@ export default function InvoicesPage() {
           {loading ? (
             <div className="text-center py-12 text-gray-400">Učitavanje...</div>
           ) : (
-            <InvoiceTable invoices={invoices} />
+            <InvoiceTable invoices={invoices} onProcessed={data => { processedRef.current = data }} />
           )}
         </div>
 

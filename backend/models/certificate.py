@@ -1,4 +1,4 @@
-"""Certificate ORM model for TrustDoc blockchain diploma verification."""
+"""Certificate ORM model for ValidDoc blockchain diploma verification."""
 
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 
@@ -27,3 +27,8 @@ class Certificate(Base):
     ime_lica = Column(String(100), nullable=True)
     prezime_lica = Column(String(100), nullable=True)
     napomena = Column(Text, nullable=True)
+    # Patch 5 — ValidDoc real blockchain columns
+    tx_hash = Column(String(100), nullable=True)
+    polygonscan_url = Column(String(200), nullable=True)
+    doc_hash = Column(String(64), nullable=True)
+    chain_timestamp = Column(Integer, nullable=True)

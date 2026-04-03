@@ -42,7 +42,7 @@ function AppRoutes() {
       <Route path="/invoices" element={<ProtectedLayout><InvoicesPage /></ProtectedLayout>} />
       <Route path="/invoices/:id" element={<ProtectedLayout><InvoiceDetailPage /></ProtectedLayout>} />
       <Route path="/report" element={<ProtectedLayout><ReportPage /></ProtectedLayout>} />
-      <Route path="/trustdoc" element={<ProtectedLayout><TrustDocPage /></ProtectedLayout>} />
+      <Route path="/validoc" element={<ProtectedLayout><TrustDocPage /></ProtectedLayout>} />
       <Route path="*" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
     </Routes>
   )

@@ -37,7 +37,7 @@ run_migrations()
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
-    title="Birokrat-Slayer API",
+    title="FiskalFlow API",
     description="Automating the accountant's nightmare — Balkan invoices, receipts, and travel orders parsed in seconds.",
     version="1.0.0",
 )
@@ -73,10 +73,14 @@ from routers.health import router as health_router
 from routers.auth import router as auth_router
 from routers.invoices import router as invoices_router
 from routers.trustdoc import router as trustdoc_router
+from routers.search import router as search_router
+from routers.audit import router as audit_router
 
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(invoices_router)
 app.include_router(trustdoc_router)
+app.include_router(search_router)
+app.include_router(audit_router)
 
-logger.info("Birokrat-Slayer API started. Environment: %s", settings.ENVIRONMENT)
+logger.info("FiskalFlow API started. Environment: %s", settings.ENVIRONMENT)

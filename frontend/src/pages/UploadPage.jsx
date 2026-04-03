@@ -1,6 +1,7 @@
 /**
  * Upload page — drag-and-drop zone with scan profile selector and processing state progression.
  * On success, navigates to the new invoice's detail page.
+ * On 409 duplicate: shows confirmation modal with force-save option.
  */
 
 import { useState } from 'react'
@@ -26,11 +27,13 @@ export default function UploadPage() {
   const [processing, setProcessing] = useState(false)
   const [stage, setStage] = useState(0)
   const [done, setDone] = useState(false)
+  const [duplicateInfo, setDuplicateInfo] = useState(null) // { existing_id, message }
 
-  const handleUpload = async () => {
+  const handleUpload = async (force = false) => {
     if (!file) return
     setProcessing(true)
     setStage(0)
+    setDuplicateInfo(null)
 
     const stageTimer1 = setTimeout(() => setStage(1), 800)
     const stageTimer2 = setTimeout(() => setStage(2), 2000)
@@ -39,8 +42,10 @@ export default function UploadPage() {
     formData.append('file', file)
     formData.append('scan_profile', scanProfile)
 
+    const url = force ? '/api/invoices/upload?force=true' : '/api/invoices/upload'
+
     try {
-      const res = await client.post('/api/invoices/upload', formData, {
+      const res = await client.post(url, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       clearTimeout(stageTimer1)
@@ -53,6 +58,16 @@ export default function UploadPage() {
       clearTimeout(stageTimer2)
       setProcessing(false)
       setStage(0)
+
+      if (err.response?.status === 409) {
+        const detail = err.response.data?.detail || {}
+        setDuplicateInfo({
+          existing_id: detail.existing_id,
+          message: detail.message || 'Moguć duplikat pronađen.',
+        })
+        return
+      }
+
       const msg =
         err.response?.data?.detail?.error ||
         err.response?.data?.detail ||
@@ -77,7 +92,7 @@ export default function UploadPage() {
 
         {file && !processing && (
           <button
-            onClick={handleUpload}
+            onClick={() => handleUpload(false)}
             className="w-full py-3 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
           >
             Procesiraj fakturu
@@ -102,6 +117,43 @@ export default function UploadPage() {
                 </span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Duplicate detection modal */}
+        {duplicateInfo && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-amber-200 p-6 max-w-sm w-full mx-4">
+              <div className="flex items-start gap-3 mb-4">
+                <span className="text-2xl">⚠️</span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Moguć duplikat</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{duplicateInfo.message}</p>
+                  {duplicateInfo.existing_id && (
+                    <button
+                      onClick={() => navigate(`/invoices/${duplicateInfo.existing_id}`)}
+                      className="mt-2 text-xs text-blue-600 hover:underline"
+                    >
+                      Pogledaj postojeći (ID #{duplicateInfo.existing_id})
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setDuplicateInfo(null); handleUpload(true) }}
+                  className="flex-1 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors"
+                >
+                  Sačuvaj kao novi
+                </button>
+                <button
+                  onClick={() => setDuplicateInfo(null)}
+                  className="flex-1 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Otkaži
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
