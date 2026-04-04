@@ -25,6 +25,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s — %(message)s",
 )
 logger = logging.getLogger(__name__)
+cors_logger = logging.getLogger("cors_debug")
 
 # Create upload directory on startup
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
@@ -46,10 +47,12 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Security headers middleware
-app.middleware("http")(security_headers_middleware)
+@app.on_event("startup")
+async def startup_diagnostic():
+    cors_logger.info("[STARTUP] CORS_ORIGINS value: %s", settings.CORS_ORIGINS)
+    cors_logger.info("[STARTUP] Parsed origins list: %s", settings.get_cors_origins())
 
-# CORS
+# CORS — must be registered before security middleware so it runs outermost
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins(),
@@ -57,6 +60,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Security headers middleware
+app.middleware("http")(security_headers_middleware)
 
 
 @app.exception_handler(RateLimitExceeded)
@@ -75,6 +81,7 @@ from routers.invoices import router as invoices_router
 from routers.trustdoc import router as trustdoc_router
 from routers.search import router as search_router
 from routers.audit import router as audit_router
+from routers.documents import router as documents_router
 
 app.include_router(health_router)
 app.include_router(auth_router)
@@ -82,5 +89,6 @@ app.include_router(invoices_router)
 app.include_router(trustdoc_router)
 app.include_router(search_router)
 app.include_router(audit_router)
+app.include_router(documents_router)
 
 logger.info("FiskalFlow API started. Environment: %s", settings.ENVIRONMENT)

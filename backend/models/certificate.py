@@ -11,7 +11,6 @@ class Certificate(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     token_id = Column(String(20), unique=True)
     hash = Column(String(64), unique=True, index=True)
-    tx_hash = Column(String(66))
     ime_studenta = Column(String(100))
     prezime_studenta = Column(String(100))
     naziv_institucije = Column(String(200))

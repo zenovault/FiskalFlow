@@ -17,7 +17,7 @@ export default function VerifyPage() {
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
-    client.get(`/api/validoc/verify/${hash}`)
+    client.get(`/api/trustdoc/verify/${hash}`)
       .then(res => setCert(res.data))
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))

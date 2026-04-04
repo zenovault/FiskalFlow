@@ -31,9 +31,13 @@ client.interceptors.response.use(
     const status = error.response?.status
 
     if (status === 401) {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
+      const isLoginRequest = error.config?.url?.includes('/auth/login')
+      if (!isLoginRequest) {
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('user')
+        toast.error('Sesija je istekla. Prijavite se ponovo.')
+        setTimeout(() => { window.location.href = '/login' }, 1500)
+      }
       return Promise.reject(error)
     }
 

@@ -112,7 +112,7 @@ function IssueTab() {
   const [form, setForm] = useState({
     ime_lica: '', prezime_lica: '',
     naziv_institucije: '', naziv_dokumenta: '',
-    broj_dokumenta: '', datum_izdavanja: '',
+    broj_dokumenta: '', datum_izdavanja: new Date().toISOString().slice(0, 10),
     nivo_obrazovanja: '', napomena: '',
     prosek: '',
     vrsta_ugovora: '', datum_isteka: '', druga_strana: '', vrednost_ugovora: '',
@@ -152,10 +152,22 @@ function IssueTab() {
         nivo_obrazovanja: form.nivo_obrazovanja || null,
         napomena: form.napomena || null,
       }
-      const res = await client.post('/api/validoc/mint', payload)
+      const res = await client.post('/api/trustdoc/mint', payload)
       setResult(res.data)
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Greška pri izdavanju')
+      // DEBUG FLAG — open browser Console (F12) to see full details
+      console.error('[VALIDOC MINT ERROR]', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        detail: err.response?.data,
+        message: err.message,
+      })
+      const status = err.response?.status
+      const detail = err.response?.data?.detail
+      const msg = typeof detail === 'object'
+        ? (detail?.error || detail?.detail || JSON.stringify(detail))
+        : (detail || err.message || 'Greška pri izdavanju')
+      toast.error(`[${status ?? 'NO RESPONSE'}] ${msg}`, { duration: 8000 })
     } finally {
       setLoading(false)
     }
@@ -484,7 +496,7 @@ function MyCertsTab({ onQr }) {
   const [verifyResults, setVerifyResults] = useState({}) // id -> result
 
   const load = async () => {
-    const res = await client.get('/api/validoc/list')
+    const res = await client.get('/api/trustdoc/list')
     setCerts(res.data)
   }
 
@@ -496,7 +508,7 @@ function MyCertsTab({ onQr }) {
   const handleRevoke = async (hash) => {
     setRevoking(hash)
     try {
-      await client.post(`/api/validoc/revoke/${hash}`)
+      await client.post(`/api/trustdoc/revoke/${hash}`)
       toast.success('Sertifikat poništen')
       setCerts(null)
     } catch {
@@ -516,7 +528,7 @@ function MyCertsTab({ onQr }) {
   const handleVerifyChain = async (cert) => {
     setVerifying(cert.id)
     try {
-      const res = await client.get(`/api/validoc/verify-chain/${cert.id}`)
+      const res = await client.get(`/api/trustdoc/verify-chain/${cert.id}`)
       setVerifyResults(prev => ({ ...prev, [cert.id]: res.data }))
     } catch {
       setVerifyResults(prev => ({ ...prev, [cert.id]: { verified: null, error: 'Greška' } }))
@@ -646,7 +658,7 @@ function VerifyTab() {
     setResult(null)
     setNotFound(false)
     try {
-      const res = await client.get(`/api/validoc/verify/${hash.trim()}`)
+      const res = await client.get(`/api/trustdoc/verify/${hash.trim()}`)
       setResult(res.data)
     } catch {
       setNotFound(true)

@@ -68,11 +68,19 @@ export default function UploadPage() {
         return
       }
 
-      const msg =
-        err.response?.data?.detail?.error ||
-        err.response?.data?.detail ||
-        'Greška pri obradi fakture'
-      toast.error(msg)
+      // DEBUG FLAG — open browser Console (F12) to see full details
+      console.error('[INVOICE UPLOAD ERROR]', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        detail: err.response?.data,
+        message: err.message,
+      })
+      const status = err.response?.status
+      const detail = err.response?.data?.detail
+      const msg = typeof detail === 'object'
+        ? (detail?.error || detail?.detail || JSON.stringify(detail))
+        : (detail || err.message || 'Greška pri obradi fakture')
+      toast.error(`[${status ?? 'NO RESPONSE'}] ${msg}`, { duration: 8000 })
     }
   }
 

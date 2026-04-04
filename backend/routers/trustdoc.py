@@ -125,7 +125,7 @@ def mint_certificate(
     certificate = Certificate(
         token_id=token_id,
         hash=cert_hash,
-        tx_hash=None,  # filled in after blockchain call
+        tx_hash="0x" + cert_hash[:64],  # fallback; overwritten after blockchain call
         ime_studenta=cert.ime_studenta or cert.ime_lica,
         prezime_studenta=cert.prezime_studenta or cert.prezime_lica,
         naziv_institucije=cert.naziv_institucije,
